@@ -16,6 +16,8 @@ type ScanResult = {
   dir: string;
 };
 
+const API_BASE = "https://site-xray-api.fly.dev";
+
 export default function Home() {
   const [url, setUrl] = useState("");
   const [version, setVersion] = useState("v7");
@@ -24,6 +26,7 @@ export default function Home() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [results, setResults] = useState<ScanResult[]>([]);
   const [activeTab, setActiveTab] = useState<"scan" | "history">("scan");
+  const [lastScanId, setLastScanId] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +65,7 @@ export default function Home() {
 
     setScanning(true);
     setLogs([]);
+    setLastScanId(null);
     addLog(`Site X-Ray ${version}`, "accent");
     addLog(`Target: ${cleanUrl}`, "info");
     addLog(`Max pages: ${maxPages}`, "info");
@@ -99,12 +103,16 @@ export default function Home() {
             } else if (event.type === "done") {
               addLog("", "dim");
               addLog(`Scan complete`, "success");
-              addLog(`Output: ${event.dir}`, "accent");
               if (event.stats) {
                 addLog(
                   `${event.stats.pages} pages, ${event.stats.images} images, ${event.stats.fonts} fonts, ${event.stats.videos} videos`,
                   "success"
                 );
+              }
+              if (event.scanId) {
+                setLastScanId(event.scanId);
+                addLog("", "dim");
+                addLog(`Preview and download available below`, "accent");
               }
               loadHistory();
             } else if (event.type === "error") {
@@ -209,9 +217,9 @@ export default function Home() {
                 disabled={scanning}
                 className="px-2 py-1 text-xs bg-surface border border-border rounded-md text-text-muted focus:outline-none focus:border-accent/50"
               >
-                <option value="v7">v7 — Pattern Recognition</option>
-                <option value="v6">v6 — Bundle Analysis</option>
-                <option value="v5">v5 — Static Clone</option>
+                <option value="v7">v7 -- Pattern Recognition</option>
+                <option value="v6">v6 -- Bundle Analysis</option>
+                <option value="v5">v5 -- Static Clone</option>
               </select>
               <label className="text-[11px] text-text-dim ml-2">Pages</label>
               <input
@@ -254,6 +262,26 @@ export default function Home() {
             )}
           </div>
 
+          {/* Action buttons — show after scan completes */}
+          {lastScanId && !scanning && (
+            <div className="flex gap-3">
+              <a
+                href={`${API_BASE}/preview/${lastScanId}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 px-4 py-2.5 text-xs font-semibold text-center rounded-lg bg-accent text-bg hover:brightness-110 transition-all"
+              >
+                Preview Clone
+              </a>
+              <a
+                href={`${API_BASE}/download/${lastScanId}`}
+                className="flex-1 px-4 py-2.5 text-xs font-semibold text-center rounded-lg bg-surface-2 border border-border text-text hover:border-border-hover transition-all"
+              >
+                Download .tar.gz
+              </a>
+            </div>
+          )}
+
           {/* Version info */}
           <div className="flex gap-4 text-[10px] text-text-dim">
             <span>v5: DOM + CSS + Assets</span>
@@ -283,6 +311,20 @@ export default function Home() {
                     </p>
                   </div>
                   <div className="flex gap-2 items-center">
+                    <a
+                      href={`${API_BASE}/preview/${r.id}/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] px-2 py-1 rounded-md bg-surface-2 border border-border text-accent hover:border-accent/30 transition-colors"
+                    >
+                      Preview
+                    </a>
+                    <a
+                      href={`${API_BASE}/download/${r.id}`}
+                      className="text-[10px] px-2 py-1 rounded-md bg-surface-2 border border-border text-text-muted hover:border-border-hover transition-colors"
+                    >
+                      Download
+                    </a>
                     <span
                       className={`text-[10px] px-2 py-0.5 rounded-full ${
                         r.status === "done"
